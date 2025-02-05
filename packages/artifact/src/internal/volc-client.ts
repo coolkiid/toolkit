@@ -12,16 +12,10 @@ import {
   DeleteArtifactResponse 
 } from "./shared/interfaces"
 import { uploadArtifact } from './upload/volc-upload-artifact'
-import {
-  downloadArtifactPublic,
-  downloadArtifactInternal
-} from './download/volc-download-artifact'
-import {
-  deleteArtifactPublic,
-  deleteArtifactInternal
-} from './delete/volc-delete-artifact'
-import {getArtifactPublic, getArtifactInternal} from './find/volc-get-artifact'
-import {listArtifactsPublic, listArtifactsInternal} from './find/volc-list-artifacts'
+import { downloadArtifactInternal } from './download/volc-download-artifact'
+import { deleteArtifactInternal } from './delete/volc-delete-artifact'
+import {getArtifactInternal} from './find/volc-get-artifact'
+import {listArtifactsInternal} from './find/volc-list-artifacts'
 
 
 export class DefaultArtifactClient implements ArtifactClient {
@@ -32,10 +26,6 @@ export class DefaultArtifactClient implements ArtifactClient {
     options?: UploadArtifactOptions
   ): Promise<UploadArtifactResponse> {
     try {
-      // if (isGhes()) {
-      //   throw new GHESNotSupportedError()
-      // }
-
       return uploadArtifact(name, files, rootDirectory, options)
     } catch (error) {
       warning(
@@ -55,25 +45,6 @@ If the error persists, please check whether Actions is operating normally at [ht
     options?: DownloadArtifactOptions & FindOptions
   ): Promise<DownloadArtifactResponse> {
     try {
-      // if (isGhes()) {
-      //   throw new GHESNotSupportedError()
-      // }
-
-      // if (options?.findBy) {
-      //   const {
-      //     findBy: {repositoryOwner, repositoryName, token},
-      //     ...downloadOptions
-      //   } = options
-
-      //   return downloadArtifactPublic(
-      //     artifactId,
-      //     repositoryOwner,
-      //     repositoryName,
-      //     token,
-      //     downloadOptions
-      //   )
-      // }
-
       return downloadArtifactInternal(artifactId, options)
     } catch (error) {
       warning(
@@ -92,24 +63,6 @@ If the error persists, please check whether Actions and API requests are operati
     options?: ListArtifactsOptions & FindOptions
   ): Promise<ListArtifactsResponse> {
     try {
-      // if (isGhes()) {
-      //   throw new GHESNotSupportedError()
-      // }
-
-      // if (options?.findBy) {
-      //   const {
-      //     findBy: {workflowRunId, repositoryOwner, repositoryName, token}
-      //   } = options
-
-      //   return listArtifactsPublic(
-      //     workflowRunId,
-      //     repositoryOwner,
-      //     repositoryName,
-      //     token,
-      //     options?.latest
-      //   )
-      // }
-
       return listArtifactsInternal(options?.latest)
     } catch (error: unknown) {
       warning(
@@ -129,24 +82,6 @@ If the error persists, please check whether Actions and API requests are operati
     options?: FindOptions
   ): Promise<GetArtifactResponse> {
     try {
-      // if (isGhes()) {
-      //   throw new GHESNotSupportedError()
-      // }
-
-      // if (options?.findBy) {
-      //   const {
-      //     findBy: {workflowRunId, repositoryOwner, repositoryName, token}
-      //   } = options
-
-      //   return getArtifactPublic(
-      //     artifactName,
-      //     workflowRunId,
-      //     repositoryOwner,
-      //     repositoryName,
-      //     token
-      //   )
-      // }
-
       return getArtifactInternal(artifactName)
     } catch (error: unknown) {
       warning(
@@ -165,24 +100,6 @@ If the error persists, please check whether Actions and API requests are operati
     options?: FindOptions
   ): Promise<DeleteArtifactResponse> {
     try {
-      // if (isGhes()) {
-      //   throw new GHESNotSupportedError()
-      // }
-
-      // if (options?.findBy) {
-      //   const {
-      //     findBy: {repositoryOwner, repositoryName, workflowRunId, token}
-      //   } = options
-
-      //   return deleteArtifactPublic(
-      //     artifactName,
-      //     workflowRunId,
-      //     repositoryOwner,
-      //     repositoryName,
-      //     token
-      //   )
-      // }
-
       return deleteArtifactInternal(artifactName)
     } catch (error) {
       warning(
