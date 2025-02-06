@@ -32,7 +32,7 @@ export async function getArtifactInternal(
 
   // const res = await artifactClient.ListArtifacts(req)
 
-  const fileName = `${artifactName}-${workflowRunBackendId}-${workflowJobRunBackendId}.zip`
+  const fileName = `${workflowRunBackendId}-${workflowJobRunBackendId}-${artifactName}.zip`
   const objectName = `artifacts/${repoName}/${fileName}`
 
   let data = {};

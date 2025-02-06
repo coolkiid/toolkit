@@ -13,7 +13,7 @@ import {
 } from "./shared/interfaces"
 import { uploadArtifact } from './upload/volc-upload-artifact'
 import { downloadArtifactInternal } from './download/volc-download-artifact'
-import { deleteArtifactInternal } from './delete/volc-delete-artifact'
+import { deleteArtifactInternal } from './delete/delete-artifact'
 import {getArtifactInternal} from './find/volc-get-artifact'
 import {listArtifactsInternal} from './find/volc-list-artifacts'
 

@@ -17,6 +17,9 @@ import {
 } from '../../generated'
 import {getBackendIdsFromToken} from '../shared/util'
 import {ArtifactNotFoundError} from '../shared/errors'
+import { createObjectStorageClient, handleError } from '../shared/tos-client'
+import { bucketName, repoName } from '../constants'
+import { DefaultArtifactClient } from '../volc-client'
 
 const scrubQueryParameters = (url: string): string => {
   const parsed = new URL(url)
@@ -100,73 +103,27 @@ export async function streamExtractExternal(
   })
 }
 
-export async function downloadArtifactPublic(
-  artifactId: number,
-  repositoryOwner: string,
-  repositoryName: string,
-  token: string,
-  options?: DownloadArtifactOptions
-): Promise<DownloadArtifactResponse> {
-  const downloadPath = await resolveOrCreateDirectory(options?.path)
-
-  const api = github.getOctokit(token)
-
-  core.info(
-    `Downloading artifact '${artifactId}' from '${repositoryOwner}/${repositoryName}'`
-  )
-
-  const {headers, status} = await api.rest.actions.downloadArtifact({
-    owner: repositoryOwner,
-    repo: repositoryName,
-    artifact_id: artifactId,
-    archive_format: 'zip',
-    request: {
-      redirect: 'manual'
-    }
-  })
-
-  if (status !== 302) {
-    throw new Error(`Unable to download artifact. Unexpected status: ${status}`)
-  }
-
-  const {location} = headers
-  if (!location) {
-    throw new Error(`Unable to redirect to artifact download url`)
-  }
-
-  core.info(
-    `Redirecting to blob download url: ${scrubQueryParameters(location)}`
-  )
-
-  try {
-    core.info(`Starting download of artifact to: ${downloadPath}`)
-    await streamExtract(location, downloadPath)
-    core.info(`Artifact download completed successfully.`)
-  } catch (error) {
-    throw new Error(`Unable to download and extract artifact: ${error.message}`)
-  }
-
-  return {downloadPath}
-}
-
 export async function downloadArtifactInternal(
   artifactId: number,
   options?: DownloadArtifactOptions
 ): Promise<DownloadArtifactResponse> {
   const downloadPath = await resolveOrCreateDirectory(options?.path)
 
-  const artifactClient = internalArtifactTwirpClient()
+  // const artifactClient = internalArtifactTwirpClient()
+
+  const artifactClient = new DefaultArtifactClient()
+  const tosClient = await createObjectStorageClient()
 
   const {workflowRunBackendId, workflowJobRunBackendId} =
     getBackendIdsFromToken()
 
-  const listReq: ListArtifactsRequest = {
-    workflowRunBackendId,
-    workflowJobRunBackendId,
-    idFilter: Int64Value.create({value: artifactId.toString()})
-  }
+  // const listReq: ListArtifactsRequest = {
+  //   workflowRunBackendId,
+  //   workflowJobRunBackendId,
+  //   idFilter: Int64Value.create({value: artifactId.toString()})
+  // }
 
-  const {artifacts} = await artifactClient.ListArtifacts(listReq)
+  const {artifacts} = await artifactClient.listArtifacts()
 
   if (artifacts.length === 0) {
     throw new ArtifactNotFoundError(
@@ -178,23 +135,31 @@ export async function downloadArtifactInternal(
     core.warning('Multiple artifacts found, defaulting to first.')
   }
 
-  const signedReq: GetSignedArtifactURLRequest = {
-    workflowRunBackendId: artifacts[0].workflowRunBackendId,
-    workflowJobRunBackendId: artifacts[0].workflowJobRunBackendId,
-    name: artifacts[0].name
-  }
+  // const signedReq: GetSignedArtifactURLRequest = {
+  //   workflowRunBackendId: artifacts[0].workflowRunBackendId,
+  //   workflowJobRunBackendId: artifacts[0].workflowJobRunBackendId,
+  //   name: artifacts[0].name
+  // }
 
-  const {signedUrl} = await artifactClient.GetSignedArtifactURL(signedReq)
+  // const {signedUrl} = await artifactClient.GetSignedArtifactURL(signedReq)
 
-  core.info(
-    `Redirecting to blob download url: ${scrubQueryParameters(signedUrl)}`
-  )
+  // core.info(
+  //   `Redirecting to blob download url: ${scrubQueryParameters(signedUrl)}`
+  // )
 
   try {
     core.info(`Starting download of artifact to: ${downloadPath}`)
-    await streamExtract(signedUrl, downloadPath)
+    // await streamExtract(signedUrl, downloadPath)
+    const fileName = `${workflowRunBackendId}-${workflowJobRunBackendId}-${artifacts[0].name}.zip`
+    const objectKey = `artifacts/${repoName}/${fileName}`
+    await tosClient.getObjectToFile({
+      bucket: bucketName,
+      key: objectKey,
+      filePath: downloadPath,
+    });
     core.info(`Artifact download completed successfully.`)
   } catch (error) {
+    handleError(error)
     throw new Error(`Unable to download and extract artifact: ${error.message}`)
   }
 
