@@ -10,112 +10,20 @@ import {OctokitOptions} from '@octokit/core/dist-types/types'
 import {internalArtifactTwirpClient} from '../shared/artifact-twirp-client'
 import {getBackendIdsFromToken} from '../shared/util'
 import {ListArtifactsRequest, Timestamp} from '../../generated'
+import { createObjectStorageClient, handleError } from '../shared/tos-client'
+import { bucketName, repoName } from '../constants'
 
 // Limiting to 1000 for perf reasons
 const maximumArtifactCount = 1000
 const paginationCount = 100
-const maxNumberOfPages = maximumArtifactCount / paginationCount
 
-export async function listArtifactsPublic(
-  workflowRunId: number,
-  repositoryOwner: string,
-  repositoryName: string,
-  token: string,
-  latest = false
-): Promise<ListArtifactsResponse> {
-  info(
-    `Fetching artifact list for workflow run ${workflowRunId} in repository ${repositoryOwner}/${repositoryName}`
-  )
-
-  let artifacts: Artifact[] = []
-  const [retryOpts, requestOpts] = getRetryOptions(defaultGitHubOptions)
-
-  const opts: OctokitOptions = {
-    log: undefined,
-    userAgent: getUserAgentString(),
-    previews: undefined,
-    retry: retryOpts,
-    request: requestOpts
-  }
-
-  const github = getOctokit(token, opts, retry, requestLog)
-
-  let currentPageNumber = 1
-  const {data: listArtifactResponse} =
-    await github.rest.actions.listWorkflowRunArtifacts({
-      owner: repositoryOwner,
-      repo: repositoryName,
-      run_id: workflowRunId,
-      per_page: paginationCount,
-      page: currentPageNumber
-    })
-
-  let numberOfPages = Math.ceil(
-    listArtifactResponse.total_count / paginationCount
-  )
-  const totalArtifactCount = listArtifactResponse.total_count
-  if (totalArtifactCount > maximumArtifactCount) {
-    warning(
-      `Workflow run ${workflowRunId} has more than 1000 artifacts. Results will be incomplete as only the first ${maximumArtifactCount} artifacts will be returned`
-    )
-    numberOfPages = maxNumberOfPages
-  }
-
-  // Iterate over the first page
-  for (const artifact of listArtifactResponse.artifacts) {
-    artifacts.push({
-      name: artifact.name,
-      id: artifact.id,
-      size: artifact.size_in_bytes,
-      createdAt: artifact.created_at ? new Date(artifact.created_at) : undefined
-    })
-  }
-
-  // Iterate over any remaining pages
-  for (
-    currentPageNumber;
-    currentPageNumber < numberOfPages;
-    currentPageNumber++
-  ) {
-    currentPageNumber++
-    debug(`Fetching page ${currentPageNumber} of artifact list`)
-
-    const {data: listArtifactResponse} =
-      await github.rest.actions.listWorkflowRunArtifacts({
-        owner: repositoryOwner,
-        repo: repositoryName,
-        run_id: workflowRunId,
-        per_page: paginationCount,
-        page: currentPageNumber
-      })
-
-    for (const artifact of listArtifactResponse.artifacts) {
-      artifacts.push({
-        name: artifact.name,
-        id: artifact.id,
-        size: artifact.size_in_bytes,
-        createdAt: artifact.created_at
-          ? new Date(artifact.created_at)
-          : undefined
-      })
-    }
-  }
-
-  if (latest) {
-    artifacts = filterLatest(artifacts)
-  }
-
-  info(`Found ${artifacts.length} artifact(s)`)
-
-  return {
-    artifacts
-  }
-}
 
 export async function listArtifactsInternal(
   latest = false
 ): Promise<ListArtifactsResponse> {
   const artifactClient = internalArtifactTwirpClient()
+
+  const client = await createObjectStorageClient()
 
   const {workflowRunBackendId, workflowJobRunBackendId} =
     getBackendIdsFromToken()
@@ -125,15 +33,36 @@ export async function listArtifactsInternal(
     workflowJobRunBackendId
   }
 
-  const res = await artifactClient.ListArtifacts(req)
-  let artifacts: Artifact[] = res.artifacts.map(artifact => ({
-    name: artifact.name,
-    id: Number(artifact.databaseId),
-    size: Number(artifact.size),
-    createdAt: artifact.createdAt
-      ? Timestamp.toDate(artifact.createdAt)
-      : undefined
-  }))
+  // const res = await artifactClient.ListArtifacts(req)
+  // let artifacts: Artifact[] = res.artifacts.map(artifact => ({
+  //   name: artifact.name,
+  //   id: Number(artifact.databaseId),
+  //   size: Number(artifact.size),
+  //   createdAt: artifact.createdAt
+  //     ? Timestamp.toDate(artifact.createdAt)
+  //     : undefined
+  // }))
+
+  let artifacts: Artifact[] = []
+  const objectKeyPrefix = `artifacts/${repoName}/${workflowRunBackendId}-${workflowJobRunBackendId}`
+
+  try {
+    const { data } = await client.listObjectsType2({
+      bucket: bucketName,
+      maxKeys: maximumArtifactCount,
+      prefix: objectKeyPrefix
+    });
+    for (const obj of data.Contents) {
+      const artifactName = obj.Key.split(objectKeyPrefix).pop().slice(1);
+      artifacts.push({
+        name: artifactName,
+        id: 0,
+        size: obj.Size,
+      });
+    }
+  } catch (error) {
+    handleError(error);
+  }
 
   if (latest) {
     artifacts = filterLatest(artifacts)
