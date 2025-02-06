@@ -12,6 +12,7 @@ import {getBackendIdsFromToken} from '../shared/util'
 import {ListArtifactsRequest, Timestamp} from '../../generated'
 import { createObjectStorageClient, handleError } from '../shared/tos-client'
 import { bucketName, repoName } from '../constants'
+import * as core from '@actions/core'
 
 // Limiting to 1000 for perf reasons
 const maximumArtifactCount = 1000
@@ -44,7 +45,9 @@ export async function listArtifactsInternal(
   // }))
 
   let artifacts: Artifact[] = []
-  const objectKeyPrefix = `artifacts/${repoName}/${workflowRunBackendId}-${workflowJobRunBackendId}`
+  const objectKeyPrefix = `artifacts/${repoName}/${workflowRunBackendId}`
+
+  core.error(`!!!listArtifactInternal: ${workflowRunBackendId}, ${workflowJobRunBackendId}`)
 
   try {
     const { data } = await client.listObjectsType2({
@@ -53,7 +56,7 @@ export async function listArtifactsInternal(
       prefix: objectKeyPrefix
     });
     for (const obj of data.Contents) {
-      const artifactName = obj.Key.slice(objectKeyPrefix.length + 1);
+      const artifactName = obj.Key.slice(objectKeyPrefix.length + 1, obj.Key.length - 4);
       artifacts.push({
         name: artifactName,
         id: 0,

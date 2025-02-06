@@ -1,7 +1,8 @@
-import fs from 'fs/promises'
+import { promises as fs, createReadStream, unlinkSync } from 'fs'
 import * as github from '@actions/github'
 import * as core from '@actions/core'
 import * as httpClient from '@actions/http-client'
+import * as path from 'path'
 import unzip from 'unzip-stream'
 import {
   DownloadArtifactOptions,
@@ -150,13 +151,19 @@ export async function downloadArtifactInternal(
   try {
     core.info(`Starting download of artifact to: ${downloadPath}`)
     // await streamExtract(signedUrl, downloadPath)
-    const fileName = `${workflowRunBackendId}-${workflowJobRunBackendId}-${artifacts[0].name}.zip`
-    const objectKey = `artifacts/${repoName}/${fileName}`
+
+    core.error(`!!!downloadArtifactInternal: ${workflowRunBackendId}, ${workflowJobRunBackendId}`)
+
+    const fileName = `${artifacts[0].name}.zip`
+    const objectKey = `artifacts/${repoName}/${workflowRunBackendId}-${fileName}`
+    const filePath = path.join(downloadPath, fileName)
     await tosClient.getObjectToFile({
       bucket: bucketName,
       key: objectKey,
-      filePath: downloadPath,
+      filePath,
     });
+    createReadStream(filePath).pipe(unzip.Extract({ path: downloadPath }))
+    unlinkSync(filePath)
     core.info(`Artifact download completed successfully.`)
   } catch (error) {
     handleError(error)

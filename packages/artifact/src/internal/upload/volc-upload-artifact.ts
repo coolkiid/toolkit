@@ -39,7 +39,10 @@ export async function uploadArtifact(
   const backendIds = getBackendIdsFromToken()
 
   const client = await createObjectStorageClient()
-  const fileName = `${backendIds.workflowRunBackendId}-${backendIds.workflowJobRunBackendId}-${name}.zip`
+
+  core.error(`!!!uploadArtifact: ${backendIds.workflowRunBackendId}, ${backendIds.workflowJobRunBackendId}`)
+
+  const fileName = `${backendIds.workflowRunBackendId}-${name}.zip`
   const objectName = `artifacts/${repoName}/${fileName}`  
 
   const zipUploadStream = await createZipUploadStream(

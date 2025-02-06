@@ -32,16 +32,20 @@ export async function getArtifactInternal(
 
   // const res = await artifactClient.ListArtifacts(req)
 
-  const fileName = `${workflowRunBackendId}-${workflowJobRunBackendId}-${artifactName}.zip`
+  core.error(`!!!getArtifactInternal: ${workflowRunBackendId}, ${workflowJobRunBackendId}`)
+
+  const fileName = `${workflowRunBackendId}-${artifactName}.zip`
   const objectName = `artifacts/${repoName}/${fileName}`
 
   let data = {};
   try {
-    let { data } = await client.headObject({
+    data = await client.headObject({
       bucket: bucketName,
       key: objectName,
     });
   } catch (error) {
+    core.error(`!!! ${objectName}`)
+
     handleError(error);
     throw new ArtifactNotFoundError(
       `Artifact not found for name: ${artifactName}
