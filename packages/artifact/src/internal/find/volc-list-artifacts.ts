@@ -11,7 +11,7 @@ import {internalArtifactTwirpClient} from '../shared/artifact-twirp-client'
 import {getBackendIdsFromToken} from '../shared/util'
 import {ListArtifactsRequest, Timestamp} from '../../generated'
 import { createObjectStorageClient, handleError } from '../shared/tos-client'
-import { bucketName, repoName } from '../constants'
+import { bucketName, repoName, objectKeyPrefix } from '../constants'
 import * as core from '@actions/core'
 
 // Limiting to 1000 for perf reasons
@@ -45,9 +45,6 @@ export async function listArtifactsInternal(
   // }))
 
   let artifacts: Artifact[] = []
-  const objectKeyPrefix = `artifacts/${repoName}/${workflowRunBackendId}`
-
-  core.error(`!!!listArtifactInternal: ${workflowRunBackendId}, ${workflowJobRunBackendId}`)
 
   try {
     const { data } = await client.listObjectsType2({

@@ -19,7 +19,7 @@ import {
 import {getBackendIdsFromToken} from '../shared/util'
 import {ArtifactNotFoundError} from '../shared/errors'
 import { createObjectStorageClient, handleError } from '../shared/tos-client'
-import { bucketName, repoName } from '../constants'
+import { bucketName, objectKeyPrefix } from '../constants'
 import { DefaultArtifactClient } from '../volc-client'
 
 const scrubQueryParameters = (url: string): string => {
@@ -152,10 +152,8 @@ export async function downloadArtifactInternal(
     core.info(`Starting download of artifact to: ${downloadPath}`)
     // await streamExtract(signedUrl, downloadPath)
 
-    core.error(`!!!downloadArtifactInternal: ${workflowRunBackendId}, ${workflowJobRunBackendId}`)
-
     const fileName = `${artifacts[0].name}.zip`
-    const objectKey = `artifacts/${repoName}/${workflowRunBackendId}-${fileName}`
+    const objectKey = `${objectKeyPrefix}/${fileName}`
     const filePath = path.join(downloadPath, fileName)
     await tosClient.getObjectToFile({
       bucket: bucketName,
@@ -163,7 +161,7 @@ export async function downloadArtifactInternal(
       filePath,
     });
     createReadStream(filePath).pipe(unzip.Extract({ path: downloadPath }))
-    unlinkSync(filePath)
+    // unlinkSync(filePath)
     core.info(`Artifact download completed successfully.`)
   } catch (error) {
     handleError(error)

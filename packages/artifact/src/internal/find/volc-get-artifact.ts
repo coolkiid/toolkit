@@ -12,7 +12,7 @@ import {internalArtifactTwirpClient} from '../shared/artifact-twirp-client'
 import {ListArtifactsRequest, StringValue, Timestamp} from '../../generated'
 import {ArtifactNotFoundError, InvalidResponseError} from '../shared/errors'
 import { createObjectStorageClient, handleError } from '../shared/tos-client'
-import { bucketName, repoName } from '../constants'
+import { bucketName, repoName, objectKeyPrefix } from '../constants'
 
 export async function getArtifactInternal(
   artifactName: string
@@ -32,20 +32,16 @@ export async function getArtifactInternal(
 
   // const res = await artifactClient.ListArtifacts(req)
 
-  core.error(`!!!getArtifactInternal: ${workflowRunBackendId}, ${workflowJobRunBackendId}`)
-
-  const fileName = `${workflowRunBackendId}-${artifactName}.zip`
-  const objectName = `artifacts/${repoName}/${fileName}`
+  const fileName = `${artifactName}.zip`
+  const objectKey = `${objectKeyPrefix}/${fileName}`
 
   let data = {};
   try {
     data = await client.headObject({
       bucket: bucketName,
-      key: objectName,
+      key: objectKey,
     });
   } catch (error) {
-    core.error(`!!! ${objectName}`)
-
     handleError(error);
     throw new ArtifactNotFoundError(
       `Artifact not found for name: ${artifactName}

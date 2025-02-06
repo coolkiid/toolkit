@@ -13,7 +13,7 @@ import {getBackendIdsFromToken} from '../shared/util'
 import {createZipUploadStream} from './zip'
 import {FilesNotFoundError} from '../shared/errors'
 import { createObjectStorageClient, handleError } from '../shared/tos-client'
-import { bucketName, repoName } from '../constants'
+import { bucketName, repoName, objectKeyPrefix } from '../constants'
 
 
 export async function uploadArtifact(
@@ -40,10 +40,8 @@ export async function uploadArtifact(
 
   const client = await createObjectStorageClient()
 
-  core.error(`!!!uploadArtifact: ${backendIds.workflowRunBackendId}, ${backendIds.workflowJobRunBackendId}`)
-
-  const fileName = `${backendIds.workflowRunBackendId}-${name}.zip`
-  const objectName = `artifacts/${repoName}/${fileName}`  
+  const fileName = `${name}.zip`
+  const objectKey = `${objectKeyPrefix}/${fileName}`  
 
   const zipUploadStream = await createZipUploadStream(
     zipSpecification,
@@ -52,7 +50,7 @@ export async function uploadArtifact(
   try {
     await client.putObject({
       bucket: bucketName,
-      key: objectName,
+      key: objectKey,
       body: zipUploadStream
     })
   } catch (error) {
@@ -63,7 +61,7 @@ export async function uploadArtifact(
 
   const { data } = await client.headObject({
     bucket: bucketName,
-    key: objectName,
+    key: objectKey,
   });
 
   return {
