@@ -53,7 +53,7 @@ export async function listArtifactsInternal(
       prefix: objectKeyPrefix
     });
     for (const obj of data.Contents) {
-      const artifactName = obj.Key.split(objectKeyPrefix).pop().slice(1);
+      const artifactName = obj.Key.slice(objectKeyPrefix.length + 1);
       artifacts.push({
         name: artifactName,
         id: 0,
